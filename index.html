@@ -86,20 +86,27 @@
         .orb-2 { width: 400px; height: 400px; background: #333; bottom: 20%; right: -5%; animation-delay: -5s; }
         @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, 50px); } }
 
-        /* --- CURSOR --- */
+        /* --- CURSOR FIXES (UPDATED) --- */
         html.no-cursor { cursor: none; }
+
         .cursor-dot {
             width: 12px; height: 12px; background: var(--accent); border-radius: 50%;
-            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+            position: fixed; top: 0; left: 0; pointer-events: none;
+            z-index: 20000; /* FIXED: Increased z-index */
             transform: translate(-50%, -50%); mix-blend-mode: difference; transition: width 0.3s, height 0.3s;
         }
         .cursor-outline {
             width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.5); border-radius: 50%;
-            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9998;
+            position: fixed; top: 0; left: 0; pointer-events: none;
+            z-index: 19999; /* FIXED: Increased z-index */
             transform: translate(-50%, -50%); transition: all 0.1s ease-out;
         }
         .hovered .cursor-dot { width: 0; height: 0; }
         .hovered .cursor-outline { width: 80px; height: 80px; background: rgba(255,107,0,0.1); border-color: var(--accent); }
+
+        /* Allow system cursor on inputs */
+        input, select, textarea { cursor: text !important; }
+        button, a, .toggle-switch, .close-modal { cursor: pointer !important; }
 
         /* --- UI ELEMENTS --- */
         .noise-bg {
@@ -422,8 +429,8 @@
 
     <footer class="py-20 border-t border-white/10 text-center relative overflow-hidden" id="footer">
         <div class="relative z-10 heat-distortion">
-            <a href="tel:+37588888888" class="font-head text-4xl md:text-6xl hover:text-[var(--accent)] transition-colors interactive hacker-text" data-value="+375 (29) 000-00-00">+375 (29) 000-00-00</a>
-            <p class="mt-4 opacity-40 font-mono text-sm">DESIGNED BY trofimovby // MINSK 2026</p>
+            <a href="tel:+375290000000" class="font-head text-4xl md:text-6xl hover:text-[var(--accent)] transition-colors interactive hacker-text" data-value="+375 (29) 000-00-00">+375 (29) 000-00-00</a>
+            <p class="mt-4 opacity-40 font-mono text-sm">DESIGNED BY trofimovby// MINSK 2026</p>
             <p class="mt-2 text-[var(--accent)] text-xs uppercase tracking-[0.2em] animate-pulse">Engine Hot</p>
         </div>
         <div class="absolute bottom-0 left-0 w-full h-full bg-gradient-to-t from-[var(--accent)]/10 to-transparent pointer-events-none z-0"></div>
