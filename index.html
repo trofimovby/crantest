@@ -1,0 +1,666 @@
+<!DOCTYPE html>
+<html lang="ru" class="no-cursor">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>МАШЕКА КС-45729 | Ultra Rental</title>
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@300;400;600&family=Unbounded:wght@200;400;700;900&display=swap" rel="stylesheet">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/gsap.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/gsap/3.12.2/ScrollTrigger.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/gh/studio-freight/lenis@1.0.29/bundled/lenis.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/vanilla-tilt/1.8.0/vanilla-tilt.min.js"></script>
+
+    <style>
+        :root {
+            --font-head: 'Unbounded', sans-serif;
+            --font-body: 'Space Grotesk', sans-serif;
+            --accent: #ff6b00;
+            --grid-color: rgba(255, 255, 255, 0.05);
+        }
+
+        body {
+            background: #050505;
+            color: #e0e0e0;
+            font-family: var(--font-body);
+            overflow-x: hidden;
+            position: relative;
+        }
+
+        /* --- 0. BOOT SCREEN --- */
+        #boot-screen {
+            position: fixed; inset: 0; z-index: 10000; background: #000;
+            display: flex; flex-direction: column; justify-content: flex-end; padding: 2rem;
+            font-family: 'Courier New', monospace; color: var(--accent);
+            transition: transform 0.8s cubic-bezier(0.7, 0, 0.3, 1);
+        }
+        #boot-screen.slide-up { transform: translateY(-100%); }
+        .boot-line { opacity: 0; display: block; margin-bottom: 5px; text-shadow: 0 0 5px var(--accent); }
+
+        /* --- PHYSICS CANVAS (ROPES) --- */
+        #ropes-canvas {
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            z-index: 9995; pointer-events: none;
+        }
+
+        /* --- HEAT HAZE SVG --- */
+        .heat-distortion { filter: url(#heatFilter); transform-origin: center bottom; }
+        .svg-filters { position: absolute; width: 0; height: 0; pointer-events: none; }
+
+        /* --- SCROLLBAR --- */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: #0a0a0a; }
+        ::-webkit-scrollbar-thumb { background: #333; border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent); }
+
+        /* --- WIDGET --- */
+        .status-widget {
+            position: fixed; bottom: 2rem; left: 2rem; z-index: 100;
+            font-family: var(--font-body); font-size: 0.75rem;
+            color: rgba(255,255,255,0.4); display: flex; flex-direction: column; gap: 0.5rem;
+            pointer-events: none; mix-blend-mode: difference; letter-spacing: 0.05em;
+        }
+        .status-dot {
+            width: 6px; height: 6px; background: #00ff00; border-radius: 50%;
+            display: inline-block; margin-right: 8px; box-shadow: 0 0 5px #00ff00;
+            animation: blink 2s infinite;
+        }
+        @keyframes blink { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+        /* --- UTILS --- */
+        .font-head { font-family: var(--font-head); }
+        .wrapper { max-width: 1400px; margin: 0 auto; padding: 0 5vw; }
+        .section-pad { padding: 120px 0; }
+        .outline-text { color: transparent; -webkit-text-stroke: 1px rgba(255,255,255,0.3); }
+
+        /* --- AMBIENT BG --- */
+        .ambient-orb {
+            position: fixed; border-radius: 50%; filter: blur(100px); z-index: -1; opacity: 0.4;
+            animation: float 20s infinite ease-in-out;
+        }
+        .orb-1 { width: 500px; height: 500px; background: #ff6b00; top: -10%; left: -10%; }
+        .orb-2 { width: 400px; height: 400px; background: #333; bottom: 20%; right: -5%; animation-delay: -5s; }
+        @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, 50px); } }
+
+        /* --- CURSOR --- */
+        html.no-cursor { cursor: none; }
+        .cursor-dot {
+            width: 12px; height: 12px; background: var(--accent); border-radius: 50%;
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9999;
+            transform: translate(-50%, -50%); mix-blend-mode: difference; transition: width 0.3s, height 0.3s;
+        }
+        .cursor-outline {
+            width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.5); border-radius: 50%;
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 9998;
+            transform: translate(-50%, -50%); transition: all 0.1s ease-out;
+        }
+        .hovered .cursor-dot { width: 0; height: 0; }
+        .hovered .cursor-outline { width: 80px; height: 80px; background: rgba(255,107,0,0.1); border-color: var(--accent); }
+
+        /* --- UI ELEMENTS --- */
+        .noise-bg {
+            position: fixed; inset: 0; pointer-events: none; z-index: 9000; opacity: 0.05;
+            background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='noiseFilter'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.65' numOctaves='3' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23noiseFilter)'/%3E%3C/svg%3E");
+        }
+
+        .glass-card {
+            background: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255, 255, 255, 0.05);
+            backdrop-filter: blur(10px); border-radius: 16px; transform-style: preserve-3d; transform: perspective(1000px);
+        }
+        .mission-card-content { transform: translateZ(30px); }
+
+        .img-marquee {
+            display: flex; gap: 20px; padding: 40px 0; overflow: hidden; background: #000;
+            border-top: 1px solid #333; border-bottom: 1px solid #333;
+            transform: rotate(-1deg); width: 105%; margin-left: -2.5%;
+        }
+        .track { display: flex; gap: 20px; animation: scroll 20s linear infinite; }
+        .marquee-img {
+            width: 300px; height: 200px; object-fit: cover; border-radius: 8px;
+            filter: grayscale(100%); transition: filter 0.3s;
+        }
+        .marquee-img:hover { filter: grayscale(0%); }
+        @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
+
+        /* Reveal Animation for Images */
+        .reveal-img {
+            clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); transition: clip-path 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+        }
+        .reveal-img.visible { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
+
+        .cta-btn {
+            background: var(--accent); color: #000; padding: 1.2rem 3rem;
+            font-family: var(--font-head); font-weight: 700; text-transform: uppercase;
+            border-radius: 100px; transition: transform 0.3s, box-shadow 0.3s;
+        }
+        .cta-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255,107,0,0.4); }
+
+        /* --- BLUEPRINT OVERLAY --- */
+        .blueprint-svg {
+            position: absolute; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none;
+        }
+        .blueprint-path {
+            fill: none; stroke: rgba(255, 255, 255, 0.4); stroke-width: 1; vector-effect: non-scaling-stroke;
+            stroke-dasharray: 1000; stroke-dashoffset: 1000;
+        }
+        .blueprint-circle {
+            fill: none; stroke: var(--accent); stroke-width: 1; opacity: 0; transform-origin: center;
+        }
+
+        /* --- TACTICAL FORM MODAL --- */
+        .modal-backdrop {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.95); z-index: 10000;
+            display: flex; align-items: center; justify-content: center;
+            opacity: 0; pointer-events: none; transition: opacity 0.5s;
+            backdrop-filter: blur(5px);
+        }
+        .modal-backdrop.active { opacity: 1; pointer-events: all; }
+
+        .tactical-form {
+            background: #0f0f0f; border: 1px solid #333; width: 95%; max-width: 600px;
+            position: relative; overflow: hidden; transform: scale(0.95); transition: transform 0.4s;
+            box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+        }
+        .modal-backdrop.active .tactical-form { transform: scale(1); }
+
+        .form-grid-bg {
+            position: absolute; inset: 0; pointer-events: none; opacity: 0.1;
+            background-image: linear-gradient(var(--grid-color) 1px, transparent 1px),
+            linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: 40px 40px;
+        }
+
+        .form-header {
+            background: #1a1a1a; padding: 1.5rem; border-bottom: 1px solid #333;
+            display: flex; justify-content: space-between; align-items: center;
+        }
+        .form-body { padding: 2rem; position: relative; z-index: 10; }
+
+        /* Tactical Inputs */
+        .t-input-group { margin-bottom: 1.5rem; position: relative; }
+        .t-label {
+            display: block; font-family: 'Space Grotesk', monospace; font-size: 0.7rem; color: var(--accent);
+            text-transform: uppercase; letter-spacing: 0.1em; margin-bottom: 0.5rem;
+        }
+        .t-input {
+            width: 100%; background: rgba(255,255,255,0.03); border: none; border-bottom: 1px solid #444;
+            color: #fff; padding: 1rem; font-family: 'Unbounded', sans-serif; font-size: 1rem;
+            transition: all 0.3s;
+        }
+        .t-input:focus {
+            background: rgba(255, 107, 0, 0.05); border-bottom-color: var(--accent); outline: none;
+            padding-left: 1.5rem;
+        }
+        .input-decor {
+            position: absolute; right: 0; bottom: 1rem; font-family: monospace; color: #555; pointer-events: none;
+        }
+
+        /* Toggle Switch */
+        .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #333; }
+        .toggle-switch {
+            position: relative; width: 60px; height: 30px; background: #333; border-radius: 15px; cursor: pointer;
+        }
+        .toggle-knob {
+            position: absolute; top: 2px; left: 2px; width: 26px; height: 26px; background: #fff;
+            border-radius: 50%; transition: transform 0.3s cubic-bezier(0.4, 0.0, 0.2, 1);
+        }
+        .toggle-checkbox:checked + .toggle-switch { background: var(--accent); }
+        .toggle-checkbox:checked + .toggle-switch .toggle-knob { transform: translateX(30px); }
+
+        .corner-mark {
+            position: absolute; width: 10px; height: 10px; border: 1px solid #555; pointer-events: none;
+        }
+        .c-tl { top: 10px; left: 10px; border-right: none; border-bottom: none; }
+        .c-tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
+        .c-bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
+        .c-br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+
+    </style>
+</head>
+<body>
+
+    <div id="boot-screen">
+        <div class="h-1 w-full bg-[#111] mb-6 relative overflow-hidden">
+            <div id="boot-bar" class="absolute top-0 left-0 h-full bg-[var(--accent)] w-0 transition-all duration-100 ease-linear"></div>
+        </div>
+        <div id="boot-text"></div>
+    </div>
+
+    <svg class="svg-filters">
+        <defs>
+            <filter id="heatFilter">
+                <feTurbulence type="fractalNoise" baseFrequency="0.01 0.02" numOctaves="1" result="noise" id="turbulence" />
+                <feDisplacementMap in="SourceGraphic" in2="noise" scale="12" />
+            </filter>
+        </defs>
+    </svg>
+
+    <canvas id="ropes-canvas"></canvas>
+
+    <div class="ambient-orb orb-1"></div>
+    <div class="ambient-orb orb-2"></div>
+    <div class="noise-bg"></div>
+
+    <div class="cursor-dot"></div>
+    <div class="cursor-outline"></div>
+
+    <div class="status-widget">
+        <div><span class="status-dot"></span>SYSTEM: ONLINE</div>
+        <div>LOC: MINSK [53.9° N, 27.5° E]</div>
+        <div id="clock">TIME: 00:00:00</div>
+        <div>AVAILABILITY: <span style="color: var(--accent)">YES</span></div>
+    </div>
+
+    <header class="fixed top-0 left-0 w-full p-8 flex justify-between items-center z-50 mix-blend-exclusion">
+        <div class="font-head font-bold text-xl interactive hacker-text" data-value="MASHEKA.RENT">MASHEKA.RENT</div>
+        <nav class="hidden md:flex gap-8">
+            <a href="#mission" class="font-head text-sm hover:text-[var(--accent)] transition-colors interactive hacker-text" data-value="УСЛУГИ">УСЛУГИ</a>
+            <a href="#specs" class="font-head text-sm hover:text-[var(--accent)] transition-colors interactive hacker-text" data-value="ТЕХНИКА">ТЕХНИКА</a>
+            <a href="#footer" class="font-head text-sm hover:text-[var(--accent)] transition-colors interactive hacker-text" data-value="КОНТАКТЫ">КОНТАКТЫ</a>
+        </nav>
+        <div class="burger md:hidden interactive p-2 space-y-1.5 cursor-pointer">
+            <div class="w-8 h-0.5 bg-white"></div>
+            <div class="w-6 h-0.5 bg-white ml-auto"></div>
+        </div>
+    </header>
+
+    <section class="h-screen relative flex items-center overflow-hidden">
+        <div class="absolute inset-0 z-0">
+            <img src="hero.jpg" alt="Hero" class="w-full h-full object-cover opacity-60 scale-110" id="heroImg">
+            <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/50"></div>
+        </div>
+
+        <div class="wrapper relative z-10 w-full pt-20">
+            <h1 class="hero-title font-head text-[clamp(3rem,9vw,8rem)] font-extrabold leading-[0.85] tracking-tight uppercase">
+                <span class="interactive block" data-tilt data-tilt-max="5">МАШЕКА</span>
+                <span class="outline-text interactive block text-[var(--accent)]" data-tilt data-tilt-max="5">20 ТОНН</span>
+                <span class="interactive block" data-tilt data-tilt-max="5">АРЕНДА</span>
+            </h1>
+            <div class="flex flex-col md:flex-row gap-8 mt-10 items-start md:items-center">
+                <p class="max-w-md text-lg opacity-80 leading-relaxed font-light">
+                    Спецтехника для задач повышенной сложности. Работаем в плотной застройке и на бездорожье.
+                </p>
+                <button class="cta-btn interactive hacker-text" id="openModal" data-value="ОФОРМИТЬ ЗАЯВКУ">ОФОРМИТЬ ЗАЯВКУ</button>
+            </div>
+        </div>
+    </section>
+
+    <div class="img-marquee">
+        <div class="track">
+            <img src="rescue.jpg" class="marquee-img">
+            <img src="urban.jpg" class="marquee-img">
+            <img src="railway.jpg" class="marquee-img">
+            <img src="macro.jpg" class="marquee-img">
+            <img src="hero.jpg" class="marquee-img">
+            <img src="rescue.jpg" class="marquee-img">
+            <img src="urban.jpg" class="marquee-img">
+            <img src="railway.jpg" class="marquee-img">
+            <img src="macro.jpg" class="marquee-img">
+            <img src="hero.jpg" class="marquee-img">
+        </div>
+    </div>
+
+    <section class="section-pad wrapper" id="mission">
+        <div class="flex justify-between items-end mb-16">
+            <h2 class="font-head text-4xl md:text-6xl uppercase">Наши <br>Возможности</h2>
+            <span class="text-[var(--accent)] font-head text-xl hidden md:block">/// 01 — 03</span>
+        </div>
+
+        <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
+            <div class="glass-card aspect-[4/5] relative overflow-hidden group interactive" data-tilt data-tilt-glare data-tilt-max-glare="0.5">
+                <img src="rescue.jpg" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
+                <div class="absolute inset-0 p-8 flex flex-col justify-end mission-card-content">
+                    <h3 class="font-head text-2xl text-[var(--accent)] mb-2 hacker-text" data-value="EXTREME">EXTREME</h3>
+                    <p class="text-sm opacity-80">Эвакуация из болот и рек. Работа на пределе.</p>
+                </div>
+            </div>
+
+            <div class="glass-card aspect-[4/5] relative overflow-hidden group interactive" data-tilt data-tilt-glare data-tilt-max-glare="0.5">
+                <img src="urban.jpg" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
+                <div class="absolute inset-0 p-8 flex flex-col justify-end mission-card-content">
+                    <h3 class="font-head text-2xl text-[var(--accent)] mb-2 hacker-text" data-value="URBAN">URBAN</h3>
+                    <p class="text-sm opacity-80">Ювелирная работа во дворах и под ЛЭП.</p>
+                </div>
+            </div>
+
+            <div class="glass-card aspect-[4/5] relative overflow-hidden group interactive" data-tilt data-tilt-glare data-tilt-max-glare="0.5">
+                <img src="railway.jpg" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
+                <div class="absolute inset-0 p-8 flex flex-col justify-end mission-card-content">
+                    <h3 class="font-head text-2xl text-[var(--accent)] mb-2 hacker-text" data-value="LOGISTICS">LOGISTICS</h3>
+                    <p class="text-sm opacity-80">Погрузка негабарита и работа с Ж/Д.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <section class="section-pad bg-[#0a0a0a]" id="specs">
+        <div class="wrapper">
+            <h2 class="font-head text-4xl md:text-6xl mb-12 text-right">ХАРАКТЕРИСТИКИ</h2>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
+                <div class="glass-card p-10 col-span-1 md:col-span-2 flex flex-col justify-center items-center interactive" data-tilt>
+                    <span class="font-head text-[8rem] leading-none text-[var(--accent)]">20<span class="text-4xl">Т</span></span>
+                    <span class="opacity-50 tracking-widest uppercase hacker-text" data-value="ГРУЗОПОДЪЕМНОСТЬ">ГРУЗОПОДЪЕМНОСТЬ</span>
+                </div>
+                <div class="glass-card p-10 col-span-1 md:col-span-1 flex flex-col justify-center items-center interactive" data-tilt>
+                    <span class="font-head text-5xl mb-2">21.7<span class="text-xl text-[var(--accent)]">М</span></span>
+                    <span class="opacity-50 text-sm">Высота стрелы</span>
+                </div>
+
+                <div class="glass-card col-span-1 md:col-span-1 relative overflow-hidden interactive" data-tilt id="schematic-container">
+                    <img src="macro.jpg" class="absolute inset-0 w-full h-full object-cover opacity-50 reveal-img">
+                    <svg class="blueprint-svg" viewBox="0 0 200 300">
+                         <line x1="20" y1="20" x2="180" y2="20" class="blueprint-path" />
+                        <line x1="180" y1="20" x2="180" y2="280" class="blueprint-path" />
+                        <line x1="20" y1="280" x2="180" y2="280" class="blueprint-path" />
+                        <line x1="20" y1="20" x2="20" y2="280" class="blueprint-path" />
+                        <circle cx="100" cy="150" r="40" class="blueprint-circle" />
+                        <circle cx="100" cy="150" r="60" class="blueprint-path" style="stroke-dasharray: 5,5;" />
+                        <line x1="100" y1="100" x2="100" y2="200" class="blueprint-path" />
+                        <line x1="50" y1="150" x2="150" y2="150" class="blueprint-path" />
+                    </svg>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <div class="modal-backdrop">
+        <div class="tactical-form">
+            <div class="form-grid-bg"></div>
+            <div class="corner-mark c-tl"></div>
+            <div class="corner-mark c-tr"></div>
+            <div class="corner-mark c-bl"></div>
+            <div class="corner-mark c-br"></div>
+
+            <div class="form-header">
+                <div class="text-xs font-mono opacity-50">SECURE CONNECTION ESTABLISHED</div>
+                <button class="text-2xl interactive close-modal text-[var(--accent)] hover:rotate-90 transition-transform">&times;</button>
+            </div>
+
+            <form class="form-body" onsubmit="event.preventDefault();">
+                <h3 class="font-head text-2xl mb-8 hacker-text" data-value="ЗАПРОС ТЕХНИКИ">ЗАПРОС ТЕХНИКИ</h3>
+
+                <div class="t-input-group">
+                    <label class="t-label">// ИДЕНТИФИКАТОР</label>
+                    <input type="text" class="t-input sound-type" placeholder="Введите имя..." required>
+                    <span class="input-decor">[ID]</span>
+                </div>
+
+                <div class="t-input-group">
+                    <label class="t-label">// КОНТАКТНЫЙ УЗЕЛ</label>
+                    <input type="tel" class="t-input sound-type" placeholder="+375 (XX) XXX-XX-XX" required>
+                    <span class="input-decor">[TEL]</span>
+                </div>
+
+                <div class="t-input-group">
+                    <label class="t-label">// ТИП ЗАДАЧИ</label>
+                    <select class="t-input sound-type" style="appearance: none;">
+                        <option>СТАНДАРТНАЯ СМЕНА (8Ч)</option>
+                        <option>ПОЛСМЕНЫ (4Ч)</option>
+                        <option>ЭКСТРЕМАЛЬНЫЙ ПОДЪЕМ</option>
+                    </select>
+                    <span class="input-decor">[TYPE]</span>
+                </div>
+
+                <div class="toggle-row">
+                    <span class="font-mono text-sm opacity-70">ПРИОРИТЕТ: <span id="prio-text" class="text-[var(--accent)]">ОБЫЧНЫЙ</span></span>
+                    <label>
+                        <input type="checkbox" class="toggle-checkbox hidden" id="priorityToggle">
+                        <div class="toggle-switch">
+                            <div class="toggle-knob"></div>
+                        </div>
+                    </label>
+                </div>
+
+                <button class="cta-btn w-full mt-8 interactive hacker-text" id="submitBtn" data-value="INITIATE REQUEST">INITIATE REQUEST</button>
+            </form>
+        </div>
+    </div>
+
+    <footer class="py-20 border-t border-white/10 text-center relative overflow-hidden" id="footer">
+        <div class="relative z-10 heat-distortion">
+            <a href="tel:+37588888888" class="font-head text-4xl md:text-6xl hover:text-[var(--accent)] transition-colors interactive hacker-text" data-value="+375 (29) 000-00-00">+375 (29) 000-00-00</a>
+            <p class="mt-4 opacity-40 font-mono text-sm">DESIGNED BY trofimovby // MINSK 2026</p>
+            <p class="mt-2 text-[var(--accent)] text-xs uppercase tracking-[0.2em] animate-pulse">Engine Hot</p>
+        </div>
+        <div class="absolute bottom-0 left-0 w-full h-full bg-gradient-to-t from-[var(--accent)]/10 to-transparent pointer-events-none z-0"></div>
+    </footer>
+
+    <script>
+        // --- 1. BOOT SEQUENCE ---
+        const bootText = document.getElementById('boot-text');
+        const bootBar = document.getElementById('boot-bar');
+        const bootScreen = document.getElementById('boot-screen');
+        const bootLines = [
+            "INITIALIZING KERNEL...",
+            "CHECKING MEMORY: 64TB OK",
+            "LOADING HYDRAULIC DRIVERS...",
+            "CALIBRATING SENSORS... DONE",
+            "CONNECTING SATELLITE... [LOCKED]",
+            "SYSTEM READY."
+        ];
+
+        document.body.style.overflow = 'hidden';
+
+        let lineIdx = 0;
+        function runBoot() {
+            if(lineIdx < bootLines.length) {
+                const div = document.createElement('div');
+                div.className = 'boot-line';
+                div.innerText = `> ${bootLines[lineIdx]}`;
+                bootText.appendChild(div);
+
+                gsap.to(div, { opacity: 1, duration: 0.1 });
+
+                const pct = ((lineIdx + 1) / bootLines.length) * 100;
+                bootBar.style.width = `${pct}%`;
+
+                lineIdx++;
+                setTimeout(runBoot, Math.random() * 200 + 100);
+            } else {
+                setTimeout(() => {
+                    bootScreen.classList.add('slide-up');
+                    document.body.style.overflow = '';
+
+                    gsap.from('.hero-title span', {
+                        y: 100, opacity: 0, duration: 1, stagger: 0.1, ease: 'power4.out', delay: 0.5
+                    });
+                }, 500);
+            }
+        }
+        window.addEventListener('load', runBoot);
+
+        // --- 2. LENIS SMOOTH SCROLL ---
+        const lenis = new Lenis({ duration: 1.5, smooth: true });
+        function raf(time) { lenis.raf(time); requestAnimationFrame(raf); }
+        requestAnimationFrame(raf);
+
+        // --- 3. LIVE CLOCK ---
+        function updateClock() {
+            const now = new Date();
+            document.getElementById('clock').innerText = `TIME: ${now.toLocaleTimeString('ru-RU')}`;
+        }
+        setInterval(updateClock, 1000); updateClock();
+
+        // --- 4. HACKER SCRAMBLE ---
+        const letters = "ABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789#%&";
+        function scrambleText(element) {
+            let iterations = 0;
+            const originalText = element.dataset.value;
+            if(element.interval) clearInterval(element.interval);
+            element.interval = setInterval(() => {
+                element.innerText = originalText.split("").map((l, i) => {
+                    if(i < iterations) return originalText[i];
+                    return letters[Math.floor(Math.random() * letters.length)];
+                }).join("");
+                if(iterations >= originalText.length) clearInterval(element.interval);
+                iterations += 1 / 3;
+            }, 30);
+        }
+        document.querySelectorAll('.hacker-text').forEach(el => {
+            el.addEventListener('mouseenter', () => scrambleText(el));
+        });
+
+        // --- 5. CUSTOM CURSOR ---
+        const cursorDot = document.querySelector('.cursor-dot');
+        const cursorOutline = document.querySelector('.cursor-outline');
+        let mouseX = 0, mouseY = 0;
+        window.addEventListener('mousemove', (e) => {
+            mouseX = e.clientX; mouseY = e.clientY;
+            cursorDot.style.left = `${mouseX}px`; cursorDot.style.top = `${mouseY}px`;
+            cursorOutline.animate({ left: `${mouseX}px`, top: `${mouseY}px` }, { duration: 500, fill: "forwards" });
+        });
+
+        // --- 6. ANIMATIONS (GSAP) ---
+        gsap.registerPlugin(ScrollTrigger);
+
+        // IMAGE REVEAL LOGIC
+        gsap.utils.toArray('.reveal-img').forEach(img => {
+            ScrollTrigger.create({
+                trigger: img,
+                start: "top 80%",
+                onEnter: () => img.classList.add('visible'),
+                once: true
+            });
+        });
+
+        // Schematic Reveal
+        gsap.to(".blueprint-path", {
+            strokeDashoffset: 0,
+            duration: 2,
+            ease: "power2.inOut",
+            scrollTrigger: { trigger: "#schematic-container", start: "top 70%" }
+        });
+        gsap.to(".blueprint-circle", {
+            opacity: 1, scale: 1,
+            duration: 1,
+            delay: 1,
+            scrollTrigger: { trigger: "#schematic-container", start: "top 70%" }
+        });
+
+        // --- 7. FORM LOGIC & SOUND ---
+        const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        function playKeySound() {
+            if (audioCtx.state === 'suspended') audioCtx.resume();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain); gain.connect(audioCtx.destination);
+            const freq = 800 + Math.random() * 200;
+            osc.frequency.setValueAtTime(freq, audioCtx.currentTime);
+            gain.gain.setValueAtTime(0.05, audioCtx.currentTime);
+            gain.gain.exponentialRampToValueAtTime(0.001, audioCtx.currentTime + 0.05);
+            osc.start(); osc.stop(audioCtx.currentTime + 0.05);
+        }
+
+        document.querySelectorAll('.sound-type').forEach(input => {
+            input.addEventListener('input', playKeySound);
+        });
+
+        const modal = document.querySelector('.modal-backdrop');
+        const prioToggle = document.getElementById('priorityToggle');
+        const prioText = document.getElementById('prio-text');
+
+        document.getElementById('openModal').addEventListener('click', () => modal.classList.add('active'));
+        document.querySelector('.close-modal').addEventListener('click', () => modal.classList.remove('active'));
+
+        prioToggle.addEventListener('change', (e) => {
+            if(e.target.checked) {
+                prioText.innerText = "ВЫСОКИЙ (URGENT)";
+                prioText.style.color = "#ff0000";
+            } else {
+                prioText.innerText = "ОБЫЧНЫЙ";
+                prioText.style.color = "var(--accent)";
+            }
+        });
+
+        const btn = document.getElementById('submitBtn');
+        btn.addEventListener('click', () => {
+            const oldText = btn.innerText;
+            btn.innerText = 'TRANSMITTING...';
+            btn.style.opacity = '0.7';
+            setTimeout(() => {
+                btn.innerText = 'CONFIRMED';
+                btn.style.background = '#4CAF50';
+                btn.style.opacity = '1';
+                setTimeout(() => {
+                    modal.classList.remove('active');
+                    btn.innerText = oldText;
+                    btn.style.background = '';
+                }, 1000);
+            }, 1500);
+        });
+
+        // --- 8. PHYSICS ROPES ---
+        const canvas = document.getElementById('ropes-canvas');
+        const ctx = canvas.getContext('2d');
+        let width, height;
+        function resize() { width = canvas.width = window.innerWidth; height = canvas.height = window.innerHeight; }
+        window.addEventListener('resize', resize); resize();
+
+        const gravity = 0.5; const friction = 0.98;
+        class Point {
+            constructor(x, y, locked) { this.x = x; this.y = y; this.oldx = x; this.oldy = y; this.locked = locked; }
+            update() {
+                if(this.locked) return;
+                const vx = (this.x - this.oldx) * friction; const vy = (this.y - this.oldy) * friction;
+                this.oldx = this.x; this.oldy = this.y;
+                this.x += vx; this.y += vy + gravity;
+                const dx = this.x - mouseX; const dy = this.y - mouseY; const dist = Math.sqrt(dx*dx+dy*dy);
+                if(dist < 50) {
+                    const angle = Math.atan2(dy, dx);
+                    const force = (50 - dist) / 50;
+                    this.x += Math.cos(angle) * force * 15; this.y += Math.sin(angle) * force * 15;
+                }
+            }
+        }
+        class Stick {
+            constructor(p1, p2) { this.p1 = p1; this.p2 = p2; this.length = Math.hypot(p2.x - p1.x, p2.y - p1.y); }
+            update() {
+                const dx = this.p2.x - this.p1.x; const dy = this.p2.y - this.p1.y;
+                const dist = Math.sqrt(dx*dx + dy*dy); const diff = this.length - dist;
+                const percent = diff / dist / 2;
+                if(!this.p1.locked) { this.p1.x -= dx * percent; this.p1.y -= dy * percent; }
+                if(!this.p2.locked) { this.p2.x += dx * percent; this.p2.y += dy * percent; }
+            }
+            draw() { ctx.beginPath(); ctx.moveTo(this.p1.x, this.p1.y); ctx.lineTo(this.p2.x, this.p2.y); ctx.stroke(); }
+        }
+
+        const ropes = [];
+        for(let i=0; i<3; i++) {
+            const pts = []; const sticks = []; const startX = window.innerWidth * (0.2 + i*0.3);
+            for(let j=0; j<30; j++) {
+                pts.push(new Point(startX, j*10, j===0));
+                if(j>0) sticks.push(new Stick(pts[j-1], pts[j]));
+            }
+            ropes.push({pts, sticks});
+        }
+
+        function animate() {
+            ctx.clearRect(0,0,width,height);
+            ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
+            ropes.forEach(r => {
+                r.pts.forEach(p => p.update());
+                for(let k=0; k<3; k++) r.sticks.forEach(s => s.update());
+                r.sticks.forEach(s => s.draw());
+            });
+            requestAnimationFrame(animate);
+        }
+        animate();
+
+        // --- 9. HEAT HAZE ---
+        const turb = document.getElementById('turbulence');
+        let frame = 0;
+        function heatAnim() {
+            frame++;
+            turb.setAttribute('baseFrequency', `${0.01 + Math.sin(frame*0.01)*0.002} ${0.02 + Math.cos(frame*0.02)*0.005}`);
+            requestAnimationFrame(heatAnim);
+        }
+        heatAnim();
+
+        console.log('%c SYSTEM READY ', 'background: #ff6b00; color: #000; font-weight: bold;');
+    </script>
+</body>
+</html>
