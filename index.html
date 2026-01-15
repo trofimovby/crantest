@@ -31,24 +31,30 @@
             position: relative;
         }
 
+        /* --- OPTIMIZED LAYERS --- */
+        .interactive, .glass-card, .cta-btn {
+            transform: translateZ(0); /* Force GPU */
+        }
+
         /* --- 0. BOOT SCREEN --- */
         #boot-screen {
             position: fixed; inset: 0; z-index: 10000; background: #000;
             display: flex; flex-direction: column; justify-content: flex-end; padding: 2rem;
             font-family: 'Courier New', monospace; color: var(--accent);
             transition: transform 0.8s cubic-bezier(0.7, 0, 0.3, 1);
+            will-change: transform;
         }
         #boot-screen.slide-up { transform: translateY(-100%); }
         .boot-line { opacity: 0; display: block; margin-bottom: 5px; text-shadow: 0 0 5px var(--accent); }
 
         /* --- PHYSICS CANVAS (ROPES) --- */
         #ropes-canvas {
-            position: fixed; top: 0; left: 0; width: 100%; height: 100%;
+            position: fixed; top: 0; left: 0; width: 100%; height: 100vh;
             z-index: 9995; pointer-events: none;
         }
 
         /* --- HEAT HAZE SVG --- */
-        .heat-distortion { filter: url(#heatFilter); transform-origin: center bottom; }
+        .heat-distortion { filter: url(#heatFilter); transform-origin: center bottom; will-change: filter; }
         .svg-filters { position: absolute; width: 0; height: 0; pointer-events: none; }
 
         /* --- SCROLLBAR --- */
@@ -81,30 +87,33 @@
         .ambient-orb {
             position: fixed; border-radius: 50%; filter: blur(100px); z-index: -1; opacity: 0.4;
             animation: float 20s infinite ease-in-out;
+            will-change: transform; /* Optimization */
         }
         .orb-1 { width: 500px; height: 500px; background: #ff6b00; top: -10%; left: -10%; }
         .orb-2 { width: 400px; height: 400px; background: #333; bottom: 20%; right: -5%; animation-delay: -5s; }
         @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, 50px); } }
 
-        /* --- CURSOR SETTINGS --- */
+        /* --- CURSOR OPTIMIZED --- */
         html.no-cursor { cursor: none; }
 
         .cursor-dot {
             width: 12px; height: 12px; background: var(--accent); border-radius: 50%;
-            position: fixed; top: 0; left: 0; pointer-events: none;
-            z-index: 20000;
-            transform: translate(-50%, -50%); mix-blend-mode: difference; transition: width 0.3s, height 0.3s;
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 20000;
+            /* Use transform for performance instead of top/left */
+            transform: translate3d(-50%, -50%, 0);
+            will-change: transform;
+            mix-blend-mode: difference; transition: width 0.3s, height 0.3s;
         }
         .cursor-outline {
             width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.5); border-radius: 50%;
-            position: fixed; top: 0; left: 0; pointer-events: none;
-            z-index: 19999;
-            transform: translate(-50%, -50%); transition: all 0.1s ease-out;
+            position: fixed; top: 0; left: 0; pointer-events: none; z-index: 19999;
+            transform: translate3d(-50%, -50%, 0);
+            will-change: transform;
+            transition: width 0.3s, height 0.3s, background-color 0.3s;
         }
         .hovered .cursor-dot { width: 0; height: 0; }
         .hovered .cursor-outline { width: 80px; height: 80px; background: rgba(255,107,0,0.1); border-color: var(--accent); }
 
-        /* Allow system cursor on inputs */
         input, select, textarea { cursor: text !important; }
         button, a, .toggle-switch, .close-modal { cursor: pointer !important; }
 
@@ -116,7 +125,9 @@
 
         .glass-card {
             background: rgba(20, 20, 20, 0.4); border: 1px solid rgba(255, 255, 255, 0.05);
-            backdrop-filter: blur(10px); border-radius: 16px; transform-style: preserve-3d; transform: perspective(1000px);
+            /* Backdrop filter is heavy, keep radius small */
+            backdrop-filter: blur(10px);
+            border-radius: 16px; transform-style: preserve-3d; transform: perspective(1000px);
         }
         .mission-card-content { transform: translateZ(30px); }
 
@@ -124,18 +135,21 @@
             display: flex; gap: 20px; padding: 40px 0; overflow: hidden; background: #000;
             border-top: 1px solid #333; border-bottom: 1px solid #333;
             transform: rotate(-1deg); width: 105%; margin-left: -2.5%;
+            will-change: transform;
         }
-        .track { display: flex; gap: 20px; animation: scroll 20s linear infinite; }
+        .track { display: flex; gap: 20px; animation: scroll 20s linear infinite; will-change: transform; }
         .marquee-img {
             width: 300px; height: 200px; object-fit: cover; border-radius: 8px;
             filter: grayscale(100%); transition: filter 0.3s;
+            /* Performance: Hardware accelerate images */
+            transform: translateZ(0);
         }
         .marquee-img:hover { filter: grayscale(0%); }
         @keyframes scroll { 0% { transform: translateX(0); } 100% { transform: translateX(-100%); } }
 
-        /* Reveal Animation for Images */
         .reveal-img {
             clip-path: polygon(0 0, 100% 0, 100% 0, 0 0); transition: clip-path 1.5s cubic-bezier(0.19, 1, 0.22, 1);
+            will-change: clip-path;
         }
         .reveal-img.visible { clip-path: polygon(0 0, 100% 0, 100% 100%, 0 100%); }
 
@@ -146,7 +160,6 @@
         }
         .cta-btn:hover { transform: scale(1.05); box-shadow: 0 0 40px rgba(255,107,0,0.4); }
 
-        /* --- BLUEPRINT OVERLAY --- */
         .blueprint-svg {
             position: absolute; inset: 0; width: 100%; height: 100%; z-index: 20; pointer-events: none;
         }
@@ -171,6 +184,7 @@
             background: #0f0f0f; border: 1px solid #333; width: 95%; max-width: 600px;
             position: relative; overflow: hidden; transform: scale(0.95); transition: transform 0.4s;
             box-shadow: 0 20px 50px rgba(0,0,0,0.8);
+            will-change: transform;
         }
         .modal-backdrop.active .tactical-form { transform: scale(1); }
 
@@ -187,7 +201,6 @@
         }
         .form-body { padding: 2rem; position: relative; z-index: 10; }
 
-        /* Tactical Inputs */
         .t-input-group { margin-bottom: 1.5rem; position: relative; }
         .t-label {
             display: block; font-family: 'Space Grotesk', monospace; font-size: 0.7rem; color: var(--accent);
@@ -206,7 +219,6 @@
             position: absolute; right: 0; bottom: 1rem; font-family: monospace; color: #555; pointer-events: none;
         }
 
-        /* Toggle Switch */
         .toggle-row { display: flex; justify-content: space-between; align-items: center; margin-top: 1rem; padding-top: 1rem; border-top: 1px dashed #333; }
         .toggle-switch {
             position: relative; width: 60px; height: 30px; background: #333; border-radius: 15px; cursor: pointer;
@@ -226,21 +238,15 @@
         .c-bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
         .c-br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
 
-        /* ========================================= */
-        /* === MOBILE OPTIMIZATION (HIDE ROPES) === */
-        /* ========================================= */
+        /* MOBILE OPTIMIZATION */
         @media (max-width: 1024px) {
-            /* Скрываем веревки */
             #ropes-canvas { display: none !important; }
-
-            /* Скрываем кастомный курсор */
             .cursor-dot, .cursor-outline { display: none !important; }
-
-            /* Возвращаем системный курсор */
             html.no-cursor { cursor: auto !important; }
-
-            /* Уменьшаем шрифты на телефоне */
             .hero-title { font-size: 3rem !important; }
+            /* Disable heavy effects on mobile */
+            .glass-card { backdrop-filter: none; background: rgba(20,20,20,0.9); }
+            .ambient-orb { opacity: 0.2; }
         }
 
     </style>
@@ -294,7 +300,7 @@
 
     <section class="h-screen relative flex items-center overflow-hidden">
         <div class="absolute inset-0 z-0">
-            <img src="hero.jpg" alt="Hero" class="w-full h-full object-cover opacity-60 scale-110" id="heroImg">
+            <img src="hero.jpg" alt="Hero" loading="eager" decoding="async" class="w-full h-full object-cover opacity-60 scale-110" id="heroImg">
             <div class="absolute inset-0 bg-gradient-to-t from-[#050505] via-transparent to-[#050505]/50"></div>
         </div>
 
@@ -315,16 +321,16 @@
 
     <div class="img-marquee">
         <div class="track">
-            <img src="rescue.jpg" class="marquee-img">
-            <img src="urban.jpg" class="marquee-img">
-            <img src="railway.jpg" class="marquee-img">
-            <img src="macro.jpg" class="marquee-img">
-            <img src="hero.jpg" class="marquee-img">
-            <img src="rescue.jpg" class="marquee-img">
-            <img src="urban.jpg" class="marquee-img">
-            <img src="railway.jpg" class="marquee-img">
-            <img src="macro.jpg" class="marquee-img">
-            <img src="hero.jpg" class="marquee-img">
+            <img src="rescue.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="urban.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="railway.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="macro.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="hero.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="rescue.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="urban.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="railway.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="macro.jpg" loading="lazy" decoding="async" class="marquee-img">
+            <img src="hero.jpg" loading="lazy" decoding="async" class="marquee-img">
         </div>
     </div>
 
@@ -336,7 +342,7 @@
 
         <div class="grid grid-cols-1 md:grid-cols-3 gap-6">
             <div class="glass-card aspect-[4/5] relative overflow-hidden group interactive" data-tilt data-tilt-glare data-tilt-max-glare="0.5">
-                <img src="rescue.jpg" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
+                <img src="rescue.jpg" loading="lazy" decoding="async" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
                 <div class="absolute inset-0 p-8 flex flex-col justify-end mission-card-content">
                     <h3 class="font-head text-2xl text-[var(--accent)] mb-2 hacker-text" data-value="EXTREME">EXTREME</h3>
                     <p class="text-sm opacity-80">Эвакуация из болот и рек. Работа на пределе.</p>
@@ -344,7 +350,7 @@
             </div>
 
             <div class="glass-card aspect-[4/5] relative overflow-hidden group interactive" data-tilt data-tilt-glare data-tilt-max-glare="0.5">
-                <img src="urban.jpg" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
+                <img src="urban.jpg" loading="lazy" decoding="async" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
                 <div class="absolute inset-0 p-8 flex flex-col justify-end mission-card-content">
                     <h3 class="font-head text-2xl text-[var(--accent)] mb-2 hacker-text" data-value="URBAN">URBAN</h3>
                     <p class="text-sm opacity-80">Ювелирная работа во дворах и под ЛЭП.</p>
@@ -352,7 +358,7 @@
             </div>
 
             <div class="glass-card aspect-[4/5] relative overflow-hidden group interactive" data-tilt data-tilt-glare data-tilt-max-glare="0.5">
-                <img src="railway.jpg" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
+                <img src="railway.jpg" loading="lazy" decoding="async" class="absolute inset-0 w-full h-full object-cover opacity-60 group-hover:opacity-40 transition-opacity duration-500 reveal-img">
                 <div class="absolute inset-0 p-8 flex flex-col justify-end mission-card-content">
                     <h3 class="font-head text-2xl text-[var(--accent)] mb-2 hacker-text" data-value="LOGISTICS">LOGISTICS</h3>
                     <p class="text-sm opacity-80">Погрузка негабарита и работа с Ж/Д.</p>
@@ -375,7 +381,7 @@
                 </div>
 
                 <div class="glass-card col-span-1 md:col-span-1 relative overflow-hidden interactive" data-tilt id="schematic-container">
-                    <img src="macro.jpg" class="absolute inset-0 w-full h-full object-cover opacity-50 reveal-img">
+                    <img src="macro.jpg" loading="lazy" decoding="async" class="absolute inset-0 w-full h-full object-cover opacity-50 reveal-img">
                     <svg class="blueprint-svg" viewBox="0 0 200 300">
                          <line x1="20" y1="20" x2="180" y2="20" class="blueprint-path" />
                         <line x1="180" y1="20" x2="180" y2="280" class="blueprint-path" />
@@ -528,14 +534,28 @@
             el.addEventListener('mouseenter', () => scrambleText(el));
         });
 
-        // --- 5. CUSTOM CURSOR ---
+        // --- 5. CUSTOM CURSOR (OPTIMIZED) ---
         const cursorDot = document.querySelector('.cursor-dot');
         const cursorOutline = document.querySelector('.cursor-outline');
         let mouseX = 0, mouseY = 0;
+
         window.addEventListener('mousemove', (e) => {
+            if (window.innerWidth < 1024) return; // Disable JS cursor logic on mobile
+
             mouseX = e.clientX; mouseY = e.clientY;
-            cursorDot.style.left = `${mouseX}px`; cursorDot.style.top = `${mouseY}px`;
-            cursorOutline.animate({ left: `${mouseX}px`, top: `${mouseY}px` }, { duration: 500, fill: "forwards" });
+
+            // USE TRANSFORM TRANSLATE3D FOR GPU ACCELERATION
+            cursorDot.style.transform = `translate3d(${mouseX}px, ${mouseY}px, 0) translate(-50%, -50%)`;
+
+            // GSAP is faster for outline animation than Web Animations API here
+            gsap.to(cursorOutline, {
+                x: mouseX,
+                y: mouseY,
+                duration: 0.15,
+                ease: "power2.out",
+                xPercent: -50,
+                yPercent: -50
+            });
         });
 
         // --- 6. ANIMATIONS (GSAP) ---
@@ -617,7 +637,7 @@
             }, 1500);
         });
 
-        // --- 8. PHYSICS ROPES ---
+        // --- 8. PHYSICS ROPES (OPTIMIZED) ---
         const canvas = document.getElementById('ropes-canvas');
         const ctx = canvas.getContext('2d');
         let width, height;
@@ -625,6 +645,9 @@
         window.addEventListener('resize', resize); resize();
 
         const gravity = 0.5; const friction = 0.98;
+        // Optimization: Reduced segments from 30 to 20
+        const segments = 20;
+
         class Point {
             constructor(x, y, locked) { this.x = x; this.y = y; this.oldx = x; this.oldy = y; this.locked = locked; }
             update() {
@@ -655,15 +678,19 @@
         const ropes = [];
         for(let i=0; i<3; i++) {
             const pts = []; const sticks = []; const startX = window.innerWidth * (0.2 + i*0.3);
-            for(let j=0; j<30; j++) {
-                pts.push(new Point(startX, j*10, j===0));
+            for(let j=0; j<segments; j++) {
+                pts.push(new Point(startX, j*15, j===0)); // Increased segment length slightly to compensate
                 if(j>0) sticks.push(new Stick(pts[j-1], pts[j]));
             }
             ropes.push({pts, sticks});
         }
 
         function animate() {
-            if (window.innerWidth < 1024) return; // MOBILE OPTIMIZATION
+            // STOP PHYSICS ON MOBILE AND WHEN SCROLLED DOWN
+            if (window.innerWidth < 1024 || window.scrollY > window.innerHeight) {
+                requestAnimationFrame(animate);
+                return;
+            }
 
             ctx.clearRect(0,0,width,height);
             ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
@@ -679,12 +706,31 @@
         // --- 9. HEAT HAZE ---
         const turb = document.getElementById('turbulence');
         let frame = 0;
+
+        // INTERSECTION OBSERVER FOR HEAT HAZE (Performance)
+        const footerObserver = new IntersectionObserver((entries) => {
+            entries.forEach(entry => {
+                if(entry.isIntersecting) {
+                    // Start animation loop only when visible
+                    if(!window.heatInterval) {
+                        window.heatInterval = requestAnimationFrame(heatAnim);
+                    }
+                } else {
+                    // Stop animation loop when hidden
+                    if(window.heatInterval) {
+                        cancelAnimationFrame(window.heatInterval);
+                        window.heatInterval = null;
+                    }
+                }
+            });
+        });
+        footerObserver.observe(document.getElementById('footer'));
+
         function heatAnim() {
             frame++;
             turb.setAttribute('baseFrequency', `${0.01 + Math.sin(frame*0.01)*0.002} ${0.02 + Math.cos(frame*0.02)*0.005}`);
-            requestAnimationFrame(heatAnim);
+            window.heatInterval = requestAnimationFrame(heatAnim);
         }
-        heatAnim();
 
         console.log('%c SYSTEM READY ', 'background: #ff6b00; color: #000; font-weight: bold;');
     </script>
