@@ -86,19 +86,19 @@
         .orb-2 { width: 400px; height: 400px; background: #333; bottom: 20%; right: -5%; animation-delay: -5s; }
         @keyframes float { 0%, 100% { transform: translate(0, 0); } 50% { transform: translate(30px, 50px); } }
 
-        /* --- CURSOR FIXES (UPDATED) --- */
+        /* --- CURSOR SETTINGS --- */
         html.no-cursor { cursor: none; }
 
         .cursor-dot {
             width: 12px; height: 12px; background: var(--accent); border-radius: 50%;
             position: fixed; top: 0; left: 0; pointer-events: none;
-            z-index: 20000; /* FIXED: Increased z-index */
+            z-index: 20000;
             transform: translate(-50%, -50%); mix-blend-mode: difference; transition: width 0.3s, height 0.3s;
         }
         .cursor-outline {
             width: 40px; height: 40px; border: 1px solid rgba(255,255,255,0.5); border-radius: 50%;
             position: fixed; top: 0; left: 0; pointer-events: none;
-            z-index: 19999; /* FIXED: Increased z-index */
+            z-index: 19999;
             transform: translate(-50%, -50%); transition: all 0.1s ease-out;
         }
         .hovered .cursor-dot { width: 0; height: 0; }
@@ -225,6 +225,23 @@
         .c-tr { top: 10px; right: 10px; border-left: none; border-bottom: none; }
         .c-bl { bottom: 10px; left: 10px; border-right: none; border-top: none; }
         .c-br { bottom: 10px; right: 10px; border-left: none; border-top: none; }
+
+        /* ========================================= */
+        /* === MOBILE OPTIMIZATION (HIDE ROPES) === */
+        /* ========================================= */
+        @media (max-width: 1024px) {
+            /* Скрываем веревки */
+            #ropes-canvas { display: none !important; }
+
+            /* Скрываем кастомный курсор */
+            .cursor-dot, .cursor-outline { display: none !important; }
+
+            /* Возвращаем системный курсор */
+            html.no-cursor { cursor: auto !important; }
+
+            /* Уменьшаем шрифты на телефоне */
+            .hero-title { font-size: 3rem !important; }
+        }
 
     </style>
 </head>
@@ -430,7 +447,7 @@
     <footer class="py-20 border-t border-white/10 text-center relative overflow-hidden" id="footer">
         <div class="relative z-10 heat-distortion">
             <a href="tel:+375290000000" class="font-head text-4xl md:text-6xl hover:text-[var(--accent)] transition-colors interactive hacker-text" data-value="+375 (29) 000-00-00">+375 (29) 000-00-00</a>
-            <p class="mt-4 opacity-40 font-mono text-sm">DESIGNED BY trofimovby// MINSK 2026</p>
+            <p class="mt-4 opacity-40 font-mono text-sm">DESIGNED BY SYSADMIN // MINSK 2026</p>
             <p class="mt-2 text-[var(--accent)] text-xs uppercase tracking-[0.2em] animate-pulse">Engine Hot</p>
         </div>
         <div class="absolute bottom-0 left-0 w-full h-full bg-gradient-to-t from-[var(--accent)]/10 to-transparent pointer-events-none z-0"></div>
@@ -646,6 +663,8 @@
         }
 
         function animate() {
+            if (window.innerWidth < 1024) return; // MOBILE OPTIMIZATION
+
             ctx.clearRect(0,0,width,height);
             ctx.strokeStyle = '#333'; ctx.lineWidth = 2;
             ropes.forEach(r => {
